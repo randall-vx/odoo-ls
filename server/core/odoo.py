@@ -166,6 +166,14 @@ class Odoo():
                     Odoo.instance.load_builtins(ls)
                     Odoo.instance.build_database(ls, odooConfig)
                     ls.show_message_log("End building database in " + str(time.time() - Odoo.instance.start_build_time) + " seconds")
+                    ls.show_message_log("Building Graph")
+                    Odoo.instance.start_build_time = time.time()
+                    import json
+                    out = {"children": []}
+                    Odoo.instance.symbols.build_graph(out)
+                    with open("out.json", "w") as f:
+                        json.dump(out, f, indent=2)
+                    ls.show_message_log("End building graph in " + str(time.time() - Odoo.instance.start_build_time) + " seconds")
             except Exception as e:
                 ls.send_notification("Odoo/displayCrashNotification", {"crashInfo": traceback.format_exc()})
                 ls.show_message_log(traceback.format_exc())

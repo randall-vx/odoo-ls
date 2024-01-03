@@ -66,6 +66,20 @@ class RegisteredRefSet():
         if data is not None:
             self.update(data)
 
+    def __sizeof__(self):
+        if hasattr(self, "size"):
+            return self.size
+        size = super().__sizeof__()
+        for c in self.__dict__.values():
+            if hasattr(self, c):
+                b = getattr(self, c)
+                if isinstance(b, set):
+                    for i in b:
+                        size += 32
+                else:
+                    size += getattr(self, c).__sizeof__()
+        return size
+
     def _commit_removals(self):
         pop = self._pending_removals.pop
         discard = self.data.discard

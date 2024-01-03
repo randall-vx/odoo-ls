@@ -43,10 +43,12 @@ class Symbol(RegisterableObject):
     to get more information
     """
 
+    id = 1
+
     __slots__ = ("name", "type", "eval", "ast_node", "value", "symbols", "moduleSymbols",
         "localSymbols",  "dependencies", "dependents", "parent",
         "modelData", "external", "start_pos", "end_pos", "archStatus", "odooStatus", "validationStatus",
-        "not_found_paths", "i_ext", "doc", "deprecated_reason")
+        "not_found_paths", "i_ext", "doc", "deprecated_reason", "size")
 
     def __init__(self, name, type):
         super().__init__()
@@ -121,6 +123,47 @@ class Symbol(RegisterableObject):
     def __del__(self):
         if DEBUG_MEMORY:
             print("symbol deleted " + self.name + " at " + os.sep.join(self.get_paths()))
+
+    def __sizeof__(self):
+        if hasattr(self, "size"):
+            return self.size
+        size = super().__sizeof__()
+        for c in self.__slots__:
+            if hasattr(self, c) and c != 'parent':
+                b = getattr(self, c)
+                if isinstance(b, dict) and c not in ["symbols", "moduleSymbols"]:
+                    for k, v in b.items():
+                        size += k.__sizeof__()
+                        if isinstance(v, dict):
+                            for i, j in b.items():
+                                size += i.__sizeof__()
+                                size += j.__sizeof__()
+                        else:
+                            size += v.__sizeof__()
+                else:
+                    size +=  getattr(self, c).__sizeof__()
+        size += sum(child.__sizeof__() for child in self.all_symbols())
+        return size
+
+    def build_graph(self, out):
+        self.id = Symbol.id
+        Symbol.id += 1
+        self.size = self.__sizeof__()
+        out["children"].append({
+            "name": self.name,
+            "size": self.size,
+            "children": []
+        })
+        for s in self.all_symbols():
+            s.build_graph(out["children"][-1])
+        color = 1000000000 - self.size
+        if color < 0:
+            color = 0
+        color = color // (1000000 / 255)
+        color = hex(int(color))[2:]
+        #dot.node(str(self.id), self.name + " - " + str(self.size), style='filled', fillcolor='#ff' + color + color)
+        #for s in self.all_symbols():
+        #    dot.edge(str(self.id), str(s.id))
 
     def all_symbols(self, line=-1, include_inherits=False):
         if line != -1:
